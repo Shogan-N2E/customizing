@@ -4,7 +4,7 @@ import db from "../db.server";
 export const action = async ({ request }) => {
   const { payload, session, topic, shop } = await authenticate.webhook(request);
 
-  console.log(`Received ${topic} webhook for ${shop}`);
+  // Received webhook (debug log removed)
   const current = payload.current;
 
   if (session) {
