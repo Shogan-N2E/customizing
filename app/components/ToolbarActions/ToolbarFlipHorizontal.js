@@ -4,10 +4,11 @@ export function handleToolbarFlipHorizontal({ selectedLayerId, designAreaRef, se
 
   try {
     if (selectedLayerId.startsWith('text-')) {
-  const textId = selectedLayerId.replace('text-', '');
+      const textId = selectedLayerId.replace('text-', '');
       const texts = designAreaRef.current?.texts || [];
+      const groupId = texts.find(t => t.id === textId)?.groupId;
       const updated = texts.map(t => {
-        if (t.id === textId) {
+        if (t.id === textId || (groupId && t.groupId === groupId)) {
           return { ...t, flipX: !t.flipX };
         }
         return t;
@@ -18,10 +19,11 @@ export function handleToolbarFlipHorizontal({ selectedLayerId, designAreaRef, se
       }
       if (setCanvasTexts) setCanvasTexts(updated);
     } else if (selectedLayerId.startsWith('image-')) {
-  const imageId = selectedLayerId.replace('image-', '');
+      const imageId = selectedLayerId.replace('image-', '');
       const images = designAreaRef.current?.images || [];
+      const groupId = images.find(img => img.id === imageId)?.groupId;
       const updated = images.map(img => {
-        if (img.id === imageId) {
+        if (img.id === imageId || (groupId && img.groupId === groupId)) {
           return { ...img, flipX: !img.flipX };
         }
         return img;

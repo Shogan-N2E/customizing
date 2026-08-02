@@ -1,0 +1,37 @@
+import '@fontsource/roboto';
+import '@fontsource/open-sans';
+import '@fontsource/inter';
+import '@fontsource/poppins';
+import '@fontsource/playfair-display';
+import '@fontsource/montserrat';
+import '@fontsource/lato';
+import '@fontsource/nunito';
+import '@fontsource/source-sans-pro';
+import '@fontsource/oswald';
+import '@fontsource/raleway';
+import '@fontsource/ubuntu';
+import '@fontsource/comic-neue';
+import '@fontsource/fira-sans';
+import '@fontsource/merriweather';
+import '@fontsource/pt-sans';
+import '@fontsource/work-sans';
+import '@fontsource/dosis';
+import '@fontsource/oxygen';
+import '@fontsource/karla';
+import '@fontsource/crimson-text';
+import '@fontsource/abril-fatface';
+import '@fontsource/dancing-script';
+import '@fontsource/pacifico';
+import '@fontsource/lobster';
+import '@fontsource/righteous';
+import '@fontsource/archivo';
+import '@fontsource/cabin';
+import '@fontsource/quicksand';
+import '@fontsource/rubik';
+import '@fontsource/hind';
+import '@fontsource/libre-baskerville';
+import '@fontsource/eb-garamond';
+
+const fontNames = ['Comic Neue', 'Roboto', 'Open Sans', 'Inter', 'Poppins', 'Playfair Display', 'Montserrat', 'Lato', 'Nunito', 'Source Sans Pro', 'Oswald', 'Raleway', 'Ubuntu', 'Fira Sans', 'Merriweather', 'PT Sans', 'Work Sans', 'Dosis', 'Oxygen', 'Karla', 'Crimson Text', 'Abril Fatface', 'Dancing Script', 'Pacifico', 'Lobster', 'Righteous', 'Archivo', 'Cabin', 'Quicksand', 'Rubik', 'Hind', 'Libre Baskerville', 'EB Garamond', 'Arial', 'Helvetica', 'Times New Roman', 'Georgia'];
+
+export const fontOptions = fontNames.map((name) => ({ name, value: name }));

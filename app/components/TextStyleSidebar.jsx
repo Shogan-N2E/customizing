@@ -12,41 +12,7 @@ import {
   Plus,
   Minus
 } from 'lucide-react';
-
-// Google Fonts import
-import '@fontsource/roboto';
-import '@fontsource/open-sans';
-import '@fontsource/inter';
-import '@fontsource/poppins';
-import '@fontsource/playfair-display';
-import '@fontsource/montserrat';
-import '@fontsource/lato';
-import '@fontsource/nunito';
-import '@fontsource/source-sans-pro';
-import '@fontsource/oswald';
-import '@fontsource/raleway';
-import '@fontsource/ubuntu';
-import '@fontsource/comic-neue';
-import '@fontsource/fira-sans';
-import '@fontsource/merriweather';
-import '@fontsource/pt-sans';
-import '@fontsource/work-sans';
-import '@fontsource/dosis';
-import '@fontsource/oxygen';
-import '@fontsource/karla';
-import '@fontsource/crimson-text';
-import '@fontsource/abril-fatface';
-import '@fontsource/dancing-script';
-import '@fontsource/pacifico';
-import '@fontsource/lobster';
-import '@fontsource/righteous';
-import '@fontsource/archivo';
-import '@fontsource/cabin';
-import '@fontsource/quicksand';
-import '@fontsource/rubik';
-import '@fontsource/hind';
-import '@fontsource/libre-baskerville';
-import '@fontsource/eb-garamond';
+import { fontOptions } from './text-style/fontOptions';
 
 export default function TextStyleSidebar({ selectedText, onChangeTextStyle, onGoBack }) {
   const [isCurvedTextEnabled, setIsCurvedTextEnabled] = useState(false);
@@ -234,46 +200,6 @@ export default function TextStyleSidebar({ selectedText, onChangeTextStyle, onGo
     }
   };
   
-  const fontOptions = [
-    { name: 'Comic Neue', value: 'Comic Neue' },
-    { name: 'Roboto', value: 'Roboto' },
-    { name: 'Open Sans', value: 'Open Sans' },
-    { name: 'Inter', value: 'Inter' },
-    { name: 'Poppins', value: 'Poppins' },
-    { name: 'Playfair Display', value: 'Playfair Display' },
-    { name: 'Montserrat', value: 'Montserrat' },
-    { name: 'Lato', value: 'Lato' },
-    { name: 'Nunito', value: 'Nunito' },
-    { name: 'Source Sans Pro', value: 'Source Sans Pro' },
-    { name: 'Oswald', value: 'Oswald' },
-    { name: 'Raleway', value: 'Raleway' },
-    { name: 'Ubuntu', value: 'Ubuntu' },
-    { name: 'Fira Sans', value: 'Fira Sans' },
-    { name: 'Merriweather', value: 'Merriweather' },
-    { name: 'PT Sans', value: 'PT Sans' },
-    { name: 'Work Sans', value: 'Work Sans' },
-    { name: 'Dosis', value: 'Dosis' },
-    { name: 'Oxygen', value: 'Oxygen' },
-    { name: 'Karla', value: 'Karla' },
-    { name: 'Crimson Text', value: 'Crimson Text' },
-    { name: 'Abril Fatface', value: 'Abril Fatface' },
-    { name: 'Dancing Script', value: 'Dancing Script' },
-    { name: 'Pacifico', value: 'Pacifico' },
-    { name: 'Lobster', value: 'Lobster' },
-    { name: 'Righteous', value: 'Righteous' },
-    { name: 'Archivo', value: 'Archivo' },
-    { name: 'Cabin', value: 'Cabin' },
-    { name: 'Quicksand', value: 'Quicksand' },
-    { name: 'Rubik', value: 'Rubik' },
-    { name: 'Hind', value: 'Hind' },
-    { name: 'Libre Baskerville', value: 'Libre Baskerville' },
-    { name: 'EB Garamond', value: 'EB Garamond' },
-    { name: 'Arial', value: 'Arial' },
-    { name: 'Helvetica', value: 'Helvetica' },
-    { name: 'Times New Roman', value: 'Times New Roman' },
-    { name: 'Georgia', value: 'Georgia' }
-  ];
-
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {

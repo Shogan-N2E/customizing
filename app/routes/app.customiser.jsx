@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
 import { handleToolbarZoom } from "../components/ToolbarActions/ToolbarZoom"; // Ensure ToolbarZoom is imported only as a function
 import { handleToolbarDelete } from "../components/ToolbarActions/ToolbarDelete";
@@ -35,12 +35,6 @@ import {
   AlignEndHorizontal, 
   Layers, 
   Check,
-  ArrowRightLeft,
-  Image,
-  Type,
-  PenTool,
-  Maximize,
-  Folder,
   ShoppingCart,
   CreditCard,
 } from "lucide-react";
@@ -49,29 +43,14 @@ import { handleToolbarFlipVertical } from "../components/ToolbarActions/ToolbarF
 
 // Import team member's canvas components
 import DesignArea from "../utils/DesignArea";
-import ProductSelector from "../utils/ProductSelector";
 import { useImageUpload } from "../utils/Image";
 import TextStyleSidebar from "../components/TextStyleSidebar";
-
-// Product category tabs
-const categories = [
-  "All Products", "Apparel", "Accessories", "Fabric", "Goods", 
-  "Living", "Pet", "Phone ACC", "Stationary", "Sticker", 
-  "Sports", "Kids", "Tech& Digital"
-];
-
-// Available design preview angles
-const views = ["Front", "Back", "Right", "Left"];
-
-// Tools available for customizing product design
-const designTools = [
-  { icon: ArrowRightLeft, label: "Change" },
-  { icon: Image, label: "Image" },
-  { icon: Type, label: "Text" },
-  { icon: PenTool, label: "Design" },
-  { icon: Maximize, label: "Layout Request" },
-  { icon: Folder, label: "Library" }
-];
+import CropDialog from "../components/customiser/CropDialog";
+import TipsDialog from "../components/customiser/TipsDialog";
+import UserLibraryDialog from "../components/customiser/UserLibraryDialog";
+import DesignLibraryDialog from "../components/customiser/DesignLibraryDialog";
+import ProductPickerDialog from "../components/customiser/ProductPickerDialog";
+import { categories, designTools, productViewAssets, views } from "../components/customiser/config";
 
 // CSS keyframes for "shaking" heart animation
 const shakeKeyframes = `
@@ -98,7 +77,7 @@ const priceBreakdown = [
 ];
 
 // Example product data (would normally be fetched from Shopify API)
-const mockProduct = {
+const demoProducts = [{
   name: "Custom T-Shirt",
   basePrice: "15.99",
   reviewCount: 245,
@@ -126,7 +105,53 @@ const mockProduct = {
     { name: "Pink", hex: "#FFC0CB" },
   ],
   availableSizes: ["S", "M", "L", "XL"]
-};
+}, {
+  name: "Custom Tote Bag",
+  basePrice: "12.99",
+  reviewCount: 186,
+  minOrderQuantity: 1,
+  availableColors: [
+    { name: "White", hex: "#FFFFFF" },
+    { name: "Natural", hex: "#E5D3B3" },
+    { name: "Black", hex: "#000000" },
+    { name: "Navy", hex: "#000080" },
+    { name: "Olive", hex: "#808000" },
+    { name: "Red", hex: "#FF0000" },
+  ],
+  availableSizes: ["Small", "Medium", "Large"],
+}];
+
+// Browser demo catalogue. Selecting a card changes only the product details;
+// the design already on the canvas remains untouched.
+const productCatalogue = [
+  {
+    ...demoProducts[0],
+    id: "classic-white-tee",
+    name: "Classic Oversized T-Shirt",
+    brand: "FLAIR Basics",
+    priceLabel: "$15.99",
+    image: "/assets/tshirt-mockup.png",
+  },
+  {
+    ...demoProducts[0],
+    id: "essential-black-tee",
+    name: "Essential Heavy T-Shirt",
+    brand: "FLAIR Studio",
+    basePrice: "18.99",
+    priceLabel: "$18.99",
+    image: "/assets/tshirt-mockup.png",
+    imageClass: "brightness-50 contrast-125",
+  },
+  {
+    ...demoProducts[0],
+    id: "soft-white-tee",
+    name: "Soft Cotton T-Shirt",
+    brand: "FLAIR Select",
+    basePrice: "16.99",
+    priceLabel: "$16.99",
+    image: "/assets/tshirt-mockup.png",
+  },
+];
 
 export default function Customiser() {
   // Zoom state for canvas
@@ -144,14 +169,20 @@ export default function Customiser() {
   const [showLayerPanel, setShowLayerPanel] = useState(false);
   const [liked, setLiked] = useState(false);
   const [showPriceList, setShowPriceList] = useState(false);
+  const [showProductPicker, setShowProductPicker] = useState(false);
+  const [showDesignLibrary, setShowDesignLibrary] = useState(false);
+  const [showUserLibrary, setShowUserLibrary] = useState(false);
+  const [showTips, setShowTips] = useState(false);
+  const [showCropDialog, setShowCropDialog] = useState(false);
+  const [cropBounds, setCropBounds] = useState({ left: 0, top: 0, right: 0, bottom: 0 });
   const [selectedLayerId, setSelectedLayerId] = useState(null);
+  const [selectedLayerIds, setSelectedLayerIds] = useState([]);
 
   // Ref for design area to access team member's canvas functions
   const designAreaRef = useRef(null);
   
   // Product selection state
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const productSelectorRef = useRef(null);
+  const [selectedProduct, setSelectedProduct] = useState(demoProducts[0]);
 
 
   // Canvas texts state (synced with DesignArea)
@@ -347,11 +378,14 @@ export default function Customiser() {
     const textLayers = canvasTexts.map(text => ({
       id: `text-${text.id}`,
       type: "text",
+      // A pattern is still the original text layer, so keep its real label.
       name: text.text || "Text",
       visible: text.visible,
       locked: false,
       originalId: text.id,
-      zIndex: text.zIndex || 0
+      zIndex: text.zIndex || 0,
+      patternId: text.patternId,
+      isPatternPrimary: text.isPatternPrimary,
     }));
 
     const imageLayers = canvasImages.map(image => ({
@@ -362,7 +396,9 @@ export default function Customiser() {
       visible: image.visible,
       locked: false,
       originalId: image.id,
-      zIndex: image.zIndex || 0
+      zIndex: image.zIndex || 0,
+      patternId: image.patternId,
+      isPatternPrimary: image.isPatternPrimary,
     }));
 
     // Combine and dedupe layers by id to avoid duplicate entries in the UI when state
@@ -370,8 +406,13 @@ export default function Customiser() {
     const combined = [...textLayers, ...imageLayers];
     const seen = new Set();
     return combined.filter(layer => {
-      if (seen.has(layer.id)) return false;
-      seen.add(layer.id);
+      // Pattern tiles remain separate SVG elements for rendering, but are shown
+      // in the layer panel as one selectable pattern layer.
+      const layerKey = layer.patternId
+        ? `pattern-${layer.type}-${layer.patternId}`
+        : layer.id;
+      if (seen.has(layerKey)) return false;
+      seen.add(layerKey);
       return true;
     });
   })();
@@ -401,12 +442,17 @@ export default function Customiser() {
   const handleSelectionChange = (selection) => {
     if (selection) {
       if (selection.type === 'text') {
-        setSelectedLayerId(`text-${selection.id}`);
+        const layerId = `text-${selection.id}`;
+        setSelectedLayerId(layerId);
+        setSelectedLayerIds([layerId]);
       } else if (selection.type === 'image') {
-        setSelectedLayerId(`image-${selection.id}`);
+        const layerId = `image-${selection.id}`;
+        setSelectedLayerId(layerId);
+        setSelectedLayerIds([layerId]);
       }
     } else {
       setSelectedLayerId(null);
+      setSelectedLayerIds([]);
     }
   };
 
@@ -419,6 +465,7 @@ export default function Customiser() {
         // Rely on those callbacks to update parent state and snapshots. Just select the new image.
         const layerId = `image-${newImage.id}`;
         setSelectedLayerId(layerId);
+        setSelectedLayerIds([layerId]);
         if (designAreaRef.current?.selectImageFromLayer) {
           designAreaRef.current.selectImageFromLayer(newImage.id);
         }
@@ -432,7 +479,7 @@ export default function Customiser() {
 
   // Price calculation function
   const calculatePrice = () => {
-    const basePrice = parseFloat(mockProduct.basePrice);
+    const basePrice = parseFloat(selectedProduct.basePrice);
     return (basePrice * quantity).toFixed(2);
   };
 
@@ -502,6 +549,82 @@ export default function Customiser() {
       const newZIndex = (selectedLayer.zIndex || 0) - 1;
       updateZIndex(selectedLayerId, newZIndex);
     }
+  };
+
+  const handleAlignSelected = (position) => {
+    if (!selectedLayerId || !designAreaRef.current?.alignSelected) return;
+
+    const type = selectedLayerId.startsWith("text-") ? "text" : "image";
+    const id = selectedLayerId.slice(type === "text" ? 5 : 6);
+    designAreaRef.current.alignSelected({ type, id, position });
+  };
+
+  const handleGroupSelected = () => {
+    if (selectedLayerIds.length < 2 || !designAreaRef.current?.groupLayers) return;
+    designAreaRef.current.groupLayers(selectedLayerIds);
+  };
+
+  const handleUngroupSelected = () => {
+    if (!selectedLayerId || !designAreaRef.current?.ungroupLayers) return;
+    designAreaRef.current.ungroupLayers([selectedLayerId]);
+  };
+
+  const handleCreatePattern = () => {
+    if (!selectedLayerId || !designAreaRef.current?.createPattern) return;
+    const type = selectedLayerId.startsWith("text-") ? "text" : "image";
+    const id = selectedLayerId.slice(type === "text" ? 5 : 6);
+    designAreaRef.current.createPattern({ type, id });
+  };
+
+  const selectedCropImage = selectedLayerId?.startsWith("image-")
+    ? canvasImages.find((image) => `image-${image.id}` === selectedLayerId)
+    : null;
+
+  const openCropDialog = () => {
+    if (!selectedCropImage) return;
+    setCropBounds({ left: 0, top: 0, right: 0, bottom: 0 });
+    setShowCropDialog(true);
+  };
+
+  const updateCropBound = (side, value) => {
+    setCropBounds((current) => {
+      const next = { ...current, [side]: value };
+      const opposite = side === "left" ? "right" : side === "right" ? "left" : side === "top" ? "bottom" : "top";
+      const axisTotal = (side === "left" || side === "right")
+        ? next.left + next.right
+        : next.top + next.bottom;
+      if (axisTotal > 90) next[opposite] = Math.max(0, 90 - value);
+      return next;
+    });
+  };
+
+  const applyCrop = () => {
+    if (!selectedCropImage || !designAreaRef.current?.applyImageCrop) return;
+    const source = new window.Image();
+    source.onload = () => {
+      const cropWidthPercent = 100 - cropBounds.left - cropBounds.right;
+      const cropHeightPercent = 100 - cropBounds.top - cropBounds.bottom;
+      const sourceX = Math.round(source.naturalWidth * (cropBounds.left / 100));
+      const sourceY = Math.round(source.naturalHeight * (cropBounds.top / 100));
+      const sourceWidth = Math.max(1, Math.round(source.naturalWidth * (cropWidthPercent / 100)));
+      const sourceHeight = Math.max(1, Math.round(source.naturalHeight * (cropHeightPercent / 100)));
+      const cropCanvas = document.createElement("canvas");
+      cropCanvas.width = sourceWidth;
+      cropCanvas.height = sourceHeight;
+      const context = cropCanvas.getContext("2d");
+      if (!context) return;
+      context.drawImage(source, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, sourceWidth, sourceHeight);
+      designAreaRef.current.applyImageCrop({
+        id: selectedCropImage.id,
+        src: cropCanvas.toDataURL("image/png"),
+        x: selectedCropImage.x + selectedCropImage.width * (cropBounds.left / 100),
+        y: selectedCropImage.y + selectedCropImage.height * (cropBounds.top / 100),
+        width: selectedCropImage.width * (cropWidthPercent / 100),
+        height: selectedCropImage.height * (cropHeightPercent / 100),
+      });
+      setShowCropDialog(false);
+    };
+    source.src = selectedCropImage.src;
   };
 
   // per-layer undo/redo stacks
@@ -776,15 +899,27 @@ const redoLayer = (layerId) => {
                   
                   <div className="flex items-center gap-4">
                     <div className="relative flex flex-col items-center group">
-                      <div className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105">
+                      <button
+                        type="button"
+                        onClick={handleGroupSelected}
+                        disabled={selectedLayerIds.length < 2}
+                        aria-label="Group selected layers"
+                        className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
                         <Group className="w-7 h-7 text-gray-700 hover:text-purple-600 cursor-pointer" />
-                      </div>
-                      <span className="absolute left-1/2 top-full mt-2.5 -translate-x-1/2 text-sm bg-white text-black rounded-xl px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-200 font-bold">Group</span>
+                      </button>
+                      <span className="absolute left-1/2 top-full mt-2.5 -translate-x-1/2 text-sm bg-white text-black rounded-xl px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-200 font-bold">Group (⌘/Ctrl + click)</span>
                     </div>
                     <div className="relative flex flex-col items-center group">
-                      <div className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105">
+                      <button
+                        type="button"
+                        onClick={handleUngroupSelected}
+                        disabled={!selectedLayerId}
+                        aria-label="Ungroup selected layer"
+                        className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
                         <Ungroup className="w-7 h-7 text-gray-700 hover:text-purple-600 cursor-pointer" />
-                      </div>
+                      </button>
                       <span className="absolute left-1/2 top-full mt-2.5 -translate-x-1/2 text-sm bg-white text-black rounded-xl px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-200 font-bold">Ungroup</span>
                     </div>
                   </div>
@@ -829,9 +964,15 @@ const redoLayer = (layerId) => {
                       <span className="absolute left-1/2 top-full mt-2.5 -translate-x-1/2 text-sm bg-white text-black rounded-xl px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-200 font-bold">Vertical Flip</span>
                     </div>
                     <div className="relative flex flex-col items-center group">
-                      <div className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105">
+                      <button
+                        type="button"
+                        onClick={handleCreatePattern}
+                        disabled={!selectedLayerId}
+                        aria-label="Fill layout with selected layer pattern"
+                        className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
                         <Grip className="w-7 h-7 text-gray-700 hover:text-purple-600 cursor-pointer" />
-                      </div>
+                      </button>
                       <span className="absolute left-1/2 top-full mt-2.5 -translate-x-1/2 text-sm bg-white text-black rounded-xl px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-200 font-bold">Pattern</span>
                     </div>
                     <div className="relative flex flex-col items-center group">
@@ -855,9 +996,15 @@ const redoLayer = (layerId) => {
                       <span className="absolute left-1/2 top-full mt-2.5 -translate-x-1/2 text-sm bg-white text-black rounded-xl px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-200 font-bold">Duplicate</span>
                     </div>
                     <div className="relative flex flex-col items-center group">
-                      <div className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105">
+                      <button
+                        type="button"
+                        onClick={openCropDialog}
+                        disabled={!selectedCropImage}
+                        aria-label="Crop selected image"
+                        className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
                         <Crop className="w-7 h-7 text-gray-700 hover:text-purple-600 cursor-pointer" />
-                      </div>
+                      </button>
                       <span className="absolute left-1/2 top-full mt-2.5 -translate-x-1/2 text-sm bg-white text-black rounded-xl px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-200 font-bold">Crop</span>
                     </div>
                   </div>
@@ -866,39 +1013,75 @@ const redoLayer = (layerId) => {
                   
                   <div className="flex items-center gap-4">
                     <div className="relative flex flex-col items-center group">
-                      <div className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105">
+                      <button
+                        type="button"
+                        onClick={() => handleAlignSelected("left")}
+                        disabled={!selectedLayerId}
+                        aria-label="Align selected layer left"
+                        className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
                         <AlignStartVertical className="w-7 h-7 text-gray-700 hover:text-purple-600 cursor-pointer" />
-                      </div>
+                      </button>
                       <span className="absolute left-1/2 top-full mt-2.5 -translate-x-1/2 text-sm bg-white text-black rounded-xl px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-200 font-bold">Left</span>
                     </div>
                     <div className="relative flex flex-col items-center group">
-                      <div className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105">
+                      <button
+                        type="button"
+                        onClick={() => handleAlignSelected("center")}
+                        disabled={!selectedLayerId}
+                        aria-label="Align selected layer horizontally centered"
+                        className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
                         <AlignHorizontalJustifyCenter className="w-7 h-7 text-gray-700 hover:text-purple-600 cursor-pointer" />
-                      </div>
+                      </button>
                       <span className="absolute left-1/2 top-full mt-2.5 -translate-x-1/2 text-sm bg-white text-black rounded-xl px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-200 font-bold">Center</span>
                     </div>
                     <div className="relative flex flex-col items-center group">
-                      <div className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105">
+                      <button
+                        type="button"
+                        onClick={() => handleAlignSelected("right")}
+                        disabled={!selectedLayerId}
+                        aria-label="Align selected layer right"
+                        className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
                         <AlignEndVertical className="w-7 h-7 text-gray-700 hover:text-purple-600 cursor-pointer" />
-                      </div>
+                      </button>
                       <span className="absolute left-1/2 top-full mt-2.5 -translate-x-1/2 text-sm bg-white text-black rounded-xl px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-200 font-bold">Right</span>
                     </div>
                     <div className="relative flex flex-col items-center group">
-                      <div className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105">
+                      <button
+                        type="button"
+                        onClick={() => handleAlignSelected("top")}
+                        disabled={!selectedLayerId}
+                        aria-label="Align selected layer top"
+                        className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
                         <AlignStartHorizontal className="w-7 h-7 text-gray-700 hover:text-purple-600 cursor-pointer" />
-                      </div>
+                      </button>
                       <span className="absolute left-1/2 top-full mt-2.5 -translate-x-1/2 text-sm bg-white text-black rounded-xl px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-200 font-bold">Top</span>
                     </div>
                     <div className="relative flex flex-col items-center group">
-                      <div className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105">
+                      <button
+                        type="button"
+                        onClick={() => handleAlignSelected("middle")}
+                        disabled={!selectedLayerId}
+                        aria-label="Align selected layer vertically centered"
+                        className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
                         <AlignCenterHorizontal className="w-7 h-7 text-gray-700 hover:text-purple-600 cursor-pointer" />
-                      </div>
+                      </button>
                       <span className="absolute left-1/2 top-full mt-2.5 -translate-x-1/2 text-sm bg-white text-black rounded-xl px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-200 font-bold">Middle</span>
                     </div>
                     <div className="relative flex flex-col items-center group">
-                      <div className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105">
+                      <button
+                        type="button"
+                        onClick={() => handleAlignSelected("bottom")}
+                        disabled={!selectedLayerId}
+                        aria-label="Align selected layer bottom"
+                        className="flex items-center justify-center rounded-full transition-all duration-150 hover:bg-purple-50 hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
                         <AlignEndHorizontal className="w-7 h-7 text-gray-700 hover:text-purple-600 cursor-pointer" />
-                      </div>
+                      </button>
                       <span className="absolute left-1/2 top-full mt-2.5 -translate-x-1/2 text-sm bg-white text-black rounded-xl px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg border border-gray-200 font-bold">Bottom</span>
                     </div>
                   </div>
@@ -912,7 +1095,11 @@ const redoLayer = (layerId) => {
                 {/* Left Side Panel */}
                 <div className="w-48 bg-[#ECDBEF] flex flex-col items-center justify-start relative h-full min-h-0">
                   <div className="flex flex-col space-y-3 mt-8 w-full items-center">
-                    <button className="w-36 h-12 bg-white border-2 border-black hover:border-purple-600 flex flex-row items-center rounded-full shadow-none px-4 text-lg font-extrabold relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowTips(true)}
+                      className="w-36 h-12 bg-white border-2 border-black hover:border-purple-600 flex flex-row items-center rounded-full shadow-none px-4 text-lg font-extrabold relative"
+                    >
                       <Check className="w-5 h-5 absolute left-3" />
                       <span className="font-extrabold text-black text-lg flex-1 text-center">Check</span>
                     </button>
@@ -929,19 +1116,32 @@ const redoLayer = (layerId) => {
                     {showLayerPanel && displayLayers.length > 0 && (
                       <div className="w-44 bg-transparent rounded-2xl mt-3 flex flex-col gap-2 p-2 border-2 border-purple-600 shadow-lg">
                         {displayLayers.map((layer) => {
-                          const isSelected = selectedLayerId === layer.id;
+                          const isSelected = selectedLayerIds.includes(layer.id);
                           return (
                             <div
                               key={layer.id}
                               className={`flex items-center justify-between pr-2 py-1 rounded-full border-2 bg-white cursor-pointer transition-all min-h-[44px] h-[52px] relative
                                 ${isSelected ? 'border-pink-400 bg-pink-50' : 'border-black'}`}
-                              onClick={() => {
+                              onClick={(event) => {
+                                const isMultiSelect = event.metaKey || event.ctrlKey;
+                                if (isMultiSelect) {
+                                  setSelectedLayerIds((previous) =>
+                                    previous.includes(layer.id)
+                                      ? previous.filter((id) => id !== layer.id)
+                                      : [...previous, layer.id],
+                                  );
+                                } else {
+                                  setSelectedLayerIds([layer.id]);
+                                }
                                 setSelectedLayerId(layer.id);
-                                // Select the corresponding element also in the design area
-                                if (layer.type === "text" && designAreaRef.current?.selectTextFromLayer) {
-                                  designAreaRef.current.selectTextFromLayer(layer.originalId);
-                                } else if (layer.type === "image" && designAreaRef.current?.selectImageFromLayer) {
-                                  designAreaRef.current.selectImageFromLayer(layer.originalId);
+                                // Canvas selection is intentionally kept single. Calling it
+                                // during multi-select would overwrite the layer-panel selection.
+                                if (!isMultiSelect) {
+                                  if (layer.type === "text" && designAreaRef.current?.selectTextFromLayer) {
+                                    designAreaRef.current.selectTextFromLayer(layer.originalId);
+                                  } else if (layer.type === "image" && designAreaRef.current?.selectImageFromLayer) {
+                                    designAreaRef.current.selectImageFromLayer(layer.originalId);
+                                  }
                                 }
                               }}
                               style={{ boxShadow: '0 1px 2px 0 rgba(0,0,0,0.04)' }}
@@ -989,7 +1189,7 @@ const redoLayer = (layerId) => {
                 {/* Center Canvas */}
                 <div className="flex-1 flex items-center justify-center relative h-full min-h-0 bg-white">
                   <div
-                    className="relative w-full max-w-[320px] aspect-square bg-gray-50 rounded-lg border-2 border-gray-200 flex items-center justify-center overflow-hidden"
+                    className="relative w-full max-w-[600px] aspect-square flex items-center justify-center overflow-hidden"
                     style={{
                       transform: `scale(${zoom})`,
                       transformOrigin: 'center center',
@@ -998,7 +1198,9 @@ const redoLayer = (layerId) => {
                   >
                     <DesignArea
                       ref={designAreaRef}
-                      coords={{ x: 0, y: 0, width: 320, height: 320 }}
+                      coords={{ x: 0, y: 0, width: 600, height: 600 }}
+                      productView={selectedView}
+                      productImageSrc={productViewAssets[selectedView]}
                       onTextsChange={setCanvasTextsLive}
                       onImagesChange={setCanvasImagesLive}
                       onTextsChangeComplete={handleTextsChangeComplete}
@@ -1009,10 +1211,11 @@ const redoLayer = (layerId) => {
                 </div>
                 
                 {/* View Controls */}
-                <div className="w-48 bg-[#ECDBEF] flex flex-col items-center justify-center relative h-full min-h-0">
-                  <div className="flex flex-col items-center w-full h-full justify-center">
-                    <div className="flex flex-col items-center w-full h-full justify-between gap-0 py-8">
+                <div className="w-48 bg-[#ECDBEF] flex flex-col items-center relative h-full min-h-0 overflow-y-auto">
+                  <div className="flex flex-col items-center justify-between w-full h-full py-6">
                       {views.map((view) => {
+                        const isSideView = view === "Right" || view === "Left";
+                        const isLeftView = view === "Left";
                         let pillClass = 'border-2 border-black text-black bg-white';
                         if (selectedView === view) {
                           pillClass = 'border-2 border-[#f87171] text-[#f87171] bg-white';
@@ -1027,20 +1230,34 @@ const redoLayer = (layerId) => {
                         const overlap = borderWidth;
 
                         return (
-                          <div key={view} className="flex flex-col items-center gap-0 relative" style={{ width: 140 }}>
-                            <div
-                              className="w-[140px] h-[180px]"
+                          <div key={view} className="flex flex-col items-center gap-0 relative" style={{ width: 160 }}>
+                            <button
+                              type="button"
+                              aria-label={`${view} view`}
+                              aria-pressed={selectedView === view}
+                              className="relative w-[160px] h-[205px] overflow-hidden"
                               style={{
                                 background: 'white',
                                 borderRadius: '1.5rem',
                                 border: `${borderWidth}px solid ${borderColor}`,
                                 cursor: 'pointer',
                                 zIndex: 2,
-                                display: 'flex',
-                                flexDirection: 'column',
                               }}
                               onClick={() => setSelectedView(view)}
-                            ></div>
+                            >
+                              <img
+                                src={productViewAssets[view]}
+                                alt={`${view} t-shirt preview`}
+                                className="absolute left-1/2 top-1/2 h-[145%] w-[145%] max-w-none object-contain"
+                                style={{
+                                  transform: `translate(-50%, -50%) scaleX(${isLeftView ? -1 : 1})`,
+                                }}
+                              />
+                              <span
+                                aria-hidden="true"
+                                className={`absolute left-1/2 -translate-x-1/2 -translate-y-1/2 border border-dashed border-gray-700 ${isSideView ? 'top-[65%] h-14 w-9' : 'top-[52%] h-12 w-8'}`}
+                              />
+                            </button>
                             <button
                               className={`min-w-[90px] px-3 py-0.5 rounded-full font-bold text-base transition-colors duration-150 ${pillClass}`}
                               style={{
@@ -1056,7 +1273,6 @@ const redoLayer = (layerId) => {
                           </div>
                         );
                       })}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1077,6 +1293,7 @@ const redoLayer = (layerId) => {
                   onGoBack={() => {
                     // Clear text selection and return to previous toolbar
                     setSelectedLayerId(null);
+                    setSelectedLayerIds([]);
                     if (designAreaRef.current?.clearSelection) {
                       designAreaRef.current.clearSelection();
                     }
@@ -1104,8 +1321,8 @@ const redoLayer = (layerId) => {
 
               {/* Product Info */}
               <div className="mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">{mockProduct.name}</h2>
-                <div className="text-sm text-gray-600 mb-1">1EA or more ${mockProduct.basePrice}</div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">{selectedProduct.name}</h2>
+                <div className="text-sm text-gray-600 mb-1">1EA or more ${selectedProduct.basePrice}</div>
                 <div className="flex items-center">
                   <div className="flex text-yellow-400">
                     {[...Array(4)].map((_, i) => (
@@ -1121,7 +1338,7 @@ const redoLayer = (layerId) => {
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="url(#halfStar)" stroke="#facc15" />
                     </svg>
                   </div>
-                  <span className="text-sm text-gray-600 ml-2 underline cursor-pointer">Reviews {mockProduct.reviewCount.toLocaleString()}</span>
+                  <span className="text-sm text-gray-600 ml-2 underline cursor-pointer">Reviews {selectedProduct.reviewCount.toLocaleString()}</span>
                 </div>
               </div>
 
@@ -1129,7 +1346,7 @@ const redoLayer = (layerId) => {
               <div className="mb-4">
                 <h3 className="font-extrabold text-gray-900 mb-4 text-lg">Color • {selectedColor}</h3>
                 <div className="grid grid-cols-10 gap-1 mb-3">
-                  {mockProduct.availableColors.map((color, index) => (
+                  {selectedProduct.availableColors.map((color, index) => (
                     <button
                       key={index}
                       onClick={() => setSelectedColor(color.name)}
@@ -1149,7 +1366,7 @@ const redoLayer = (layerId) => {
               <div className="mb-4">
                 <h3 className="font-extrabold text-gray-900 mb-4 text-lg">Size</h3>
                 <div className="flex justify-between gap-4">
-                  {mockProduct.availableSizes.map((size) => (
+                  {selectedProduct.availableSizes.map((size) => (
                     <button
                       key={size}
                       className={`w-24 h-10 rounded-full text-base font-normal px-0 text-center border-2 transition-colors duration-150 ${
@@ -1207,7 +1424,7 @@ const redoLayer = (layerId) => {
                     <span>Price Policy</span>
                   </button>
                 </div>
-                <p className="text-xs text-gray-600">{mockProduct.minOrderQuantity} set minimum order</p>
+                <p className="text-xs text-gray-600">{selectedProduct.minOrderQuantity} set minimum order</p>
               </div>
 
               {/* Design Tools */}
@@ -1227,6 +1444,7 @@ const redoLayer = (layerId) => {
                           if (newText) {
                             const layerId = `text-${newText.id}`;
                             setSelectedLayerId(layerId);
+                            setSelectedLayerIds([layerId]);
                             if (designAreaRef.current?.selectTextFromLayer) {
                               designAreaRef.current.selectTextFromLayer(newText.id);
                             }
@@ -1235,31 +1453,11 @@ const redoLayer = (layerId) => {
                           // Image upload trigger
                           triggerImageUpload();
                         } else if (tool.label === "Change") {
-                          // Shopify product selection
-                          if (window.shopify) {
-                            try {
-                              const selected = await window.shopify.resourcePicker({
-                                type: "product",
-                                action: "select",
-                              });
-                              
-                              if (selected && selected.length > 0) {
-                                const { id, title, variants, images, handle } = selected[0];
-                                setSelectedProduct({
-                                  id,
-                                  title,
-                                  handle,
-                                  variantId: variants?.[0]?.id,
-                                  image: images?.[0]?.originalSrc,
-                                });
-                                // Selected product: (debug log removed)
-                              }
-                            } catch (error) {
-                              console.error("Product selection failed:", error);
-                            }
-                          } else {
-                            console.error("Shopify App Bridge not available");
-                          }
+                          setShowProductPicker(true);
+                        } else if (tool.label === "Design") {
+                          setShowDesignLibrary(true);
+                        } else if (tool.label === "Library") {
+                          setShowUserLibrary(true);
                         }
                       }}
                     >
@@ -1344,6 +1542,42 @@ const redoLayer = (layerId) => {
           </div>
         </div>
         
+        {showCropDialog && <CropDialog image={selectedCropImage} bounds={cropBounds} onBoundsChange={updateCropBound} onApply={applyCrop} onClose={() => setShowCropDialog(false)} />}
+
+        {showTips && <TipsDialog
+          onClose={() => setShowTips(false)}
+          onUpload={() => { setShowTips(false); triggerImageUpload(); }}
+          onInsertText={() => {
+            const newText = designAreaRef.current?.addText?.();
+            if (newText) {
+              const layerId = `text-${newText.id}`;
+              setSelectedLayerId(layerId);
+              setSelectedLayerIds([layerId]);
+              designAreaRef.current?.selectTextFromLayer?.(newText.id);
+            }
+            setShowTips(false);
+          }}
+          onOpenDesign={() => { setShowTips(false); setShowDesignLibrary(true); }}
+        />}
+
+        {showUserLibrary && <UserLibraryDialog onClose={() => setShowUserLibrary(false)} onUpload={() => { setShowUserLibrary(false); triggerImageUpload(); }} />}
+
+        {showDesignLibrary && <DesignLibraryDialog onClose={() => setShowDesignLibrary(false)} />}
+
+        {showProductPicker && <ProductPickerDialog
+          categories={categories}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+          products={productCatalogue}
+          onClose={() => setShowProductPicker(false)}
+          onSelectProduct={(product) => {
+            setSelectedProduct(product);
+            setSelectedColor(product.availableColors[0]?.name || "White");
+            setSelectedSize(product.availableSizes[0] || "M");
+            setShowProductPicker(false);
+          }}
+        />}
+
         {/* Popup */}
         {showPopup && (
           <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-pink-100 border-2 border-pink-300 text-pink-700 px-8 py-4 rounded-2xl shadow-2xl z-50 text-xl font-semibold flex items-center gap-2 animate-fadein drop-shadow-lg">

@@ -2,14 +2,14 @@ import React, { forwardRef, useState, useImperativeHandle, useEffect } from "rea
 import TextItem from "./TextItem";
 import { ImageItem } from "./Image";
 
-const DesignArea = forwardRef(({ coords, onTextsChange, onImagesChange, onSelectionChange, onTextsChangeComplete, onImagesChangeComplete }, ref) => {
+const DesignArea = forwardRef(({ coords, productView = "Front", productImageSrc = "/assets/tshirt-mockup.png", onTextsChange, onImagesChange, onSelectionChange, onTextsChangeComplete, onImagesChangeComplete }, ref) => {
   const { x, y, width, height } = coords;
 
   const [texts, setTexts] = useState([
     { 
       id: '1', 
-      x: 150, 
-      y: 150, 
+      x: width / 2,
+      y: height / 2,
       text: "hello world", 
       isEditing: false, 
       visible: true, 
@@ -51,8 +51,12 @@ const DesignArea = forwardRef(({ coords, onTextsChange, onImagesChange, onSelect
 
   const updateText = (id, newText) => {
     setTexts((items) => {
+      const activeItem = items.find((item) => item.id === id);
+      const groupId = activeItem?.groupId;
       const next = items.map((item) =>
-        item.id === id ? { ...item, text: newText } : item
+        item.id === id || (groupId && item.groupId === groupId)
+          ? { ...item, text: newText }
+          : item
       );
       return next;
     });
@@ -60,26 +64,91 @@ const DesignArea = forwardRef(({ coords, onTextsChange, onImagesChange, onSelect
 
   const updatePosition = (id, pos) => {
     setTexts((items) => {
-      const next = items.map((item) =>
-        item.id === id ? { ...item, x: pos.x, y: pos.y } : item
-      );
+      const activeItem = items.find((item) => item.id === id);
+      const groupId = activeItem?.groupId;
+      const deltaX = pos.x - (activeItem?.x ?? pos.x);
+      const deltaY = pos.y - (activeItem?.y ?? pos.y);
+      const next = items.map((item) => {
+        if (item.id === id) return { ...item, x: pos.x, y: pos.y };
+        if (groupId && item.groupId === groupId) {
+          return { ...item, x: item.x + deltaX, y: item.y + deltaY };
+        }
+        return item;
+      });
+
+      if (groupId) {
+        setImages((imageItems) =>
+          imageItems.map((item) =>
+            item.groupId === groupId
+              ? { ...item, x: item.x + deltaX, y: item.y + deltaY }
+              : item,
+          ),
+        );
+      }
       return next;
     });
   };
 
   const updateTextStyle = (id, style) => {
     setTexts((items) => {
-      const next = items.map((item) =>
-        item.id === id ? { ...item, ...style } : item
-      );
+      const activeItem = items.find((item) => item.id === id);
+      if (!activeItem) return items;
+
+      const groupId = activeItem.groupId;
+      const isResizingGroup = groupId && style.fontSize !== undefined;
+      const scale = isResizingGroup
+        ? style.fontSize / (activeItem.fontSize || 18)
+        : 1;
+      const next = items.map((item) => {
+        if (item.id === id) return { ...item, ...style };
+        if (groupId && item.groupId === groupId) {
+          return {
+            ...item,
+            // Colour, font, weight and other style choices apply to every
+            // tile in a pattern. Font-size changes also preserve its layout.
+            ...style,
+            ...(isResizingGroup
+              ? {
+                  x: activeItem.x + (item.x - activeItem.x) * scale,
+                  y: activeItem.y + (item.y - activeItem.y) * scale,
+                  fontSize: Math.max(8, (item.fontSize || 18) * scale),
+                }
+              : {}),
+          };
+        }
+        return item;
+      });
+
+      if (isResizingGroup) {
+        setImages((imageItems) =>
+          imageItems.map((item) =>
+            item.groupId === groupId
+              ? {
+                  ...item,
+                  x: activeItem.x + (item.x - activeItem.x) * scale,
+                  y: activeItem.y + (item.y - activeItem.y) * scale,
+                  width: item.width * scale,
+                  height: item.height * scale,
+                }
+              : item,
+          ),
+        );
+      }
       return next;
     });
   };
 
   const updateTextRotation = (id, rotation) => {
     setTexts((items) => {
+      const activeItem = items.find((item) => item.id === id);
+      const groupId = activeItem?.groupId;
+      const rotationDelta = rotation - (activeItem?.rotation || 0);
       const next = items.map((item) =>
-        item.id === id ? { ...item, rotation } : item
+        item.id === id
+          ? { ...item, rotation }
+          : groupId && item.groupId === groupId
+            ? { ...item, rotation: (item.rotation || 0) + rotationDelta }
+            : item
       );
       return next;
     });
@@ -113,8 +182,8 @@ const DesignArea = forwardRef(({ coords, onTextsChange, onImagesChange, onSelect
   const addText = () => {
     const newText = {
       id: String(Date.now()),  // unique id as string
-      x: 200,  // default position
-      y: 200,
+      x: width / 2,
+      y: height / 2,
       text: "This is a new text item",
       isEditing: true, // starts in edit mode
       visible: true, // visible by default
@@ -216,8 +285,8 @@ const DesignArea = forwardRef(({ coords, onTextsChange, onImagesChange, onSelect
   const addImage = (imageData) => {
     const newImage = {
       id: String(imageData.id || `${Date.now()}-${Math.random()}`), // Ensure unique id as string
-      x: imageData.x !== undefined ? imageData.x : 150,
-      y: imageData.y !== undefined ? imageData.y : 150,
+      x: imageData.x !== undefined ? imageData.x : width / 2 - 50,
+      y: imageData.y !== undefined ? imageData.y : height / 2 - 50,
       src: imageData.src || imageData.url || '',
       width: imageData.width || 100,
       height: imageData.height || 100,
@@ -245,24 +314,72 @@ const DesignArea = forwardRef(({ coords, onTextsChange, onImagesChange, onSelect
 
   const updateImagePosition = (id, newX, newY) => {
     setImages((items) => {
-      const next = items.map((item) =>
-        item.id === id ? { ...item, x: newX, y: newY } : item
-      );
+      const activeItem = items.find((item) => item.id === id);
+      const groupId = activeItem?.groupId;
+      const deltaX = newX - (activeItem?.x ?? newX);
+      const deltaY = newY - (activeItem?.y ?? newY);
+      const next = items.map((item) => {
+        if (item.id === id) return { ...item, x: newX, y: newY };
+        if (groupId && item.groupId === groupId) {
+          return { ...item, x: item.x + deltaX, y: item.y + deltaY };
+        }
+        return item;
+      });
+
+      if (groupId) {
+        setTexts((textItems) =>
+          textItems.map((item) =>
+            item.groupId === groupId
+              ? { ...item, x: item.x + deltaX, y: item.y + deltaY }
+              : item,
+          ),
+        );
+      }
       return next;
     });
   };
 
   const updateImageSize = (id, newWidth, newHeight, newX, newY) => {
     setImages((items) => {
-      const next = items.map((item) =>
-        item.id === id ? { 
-          ...item, 
-          width: newWidth, 
-          height: newHeight,
-          x: newX !== undefined ? newX : item.x,
-          y: newY !== undefined ? newY : item.y
-        } : item
-      );
+      const activeItem = items.find((item) => item.id === id);
+      if (!activeItem) return items;
+
+      const groupId = activeItem.groupId;
+      const targetX = newX !== undefined ? newX : activeItem.x;
+      const targetY = newY !== undefined ? newY : activeItem.y;
+      const scaleX = activeItem.width ? newWidth / activeItem.width : 1;
+      const scaleY = activeItem.height ? newHeight / activeItem.height : 1;
+      const textScale = (scaleX + scaleY) / 2;
+      const next = items.map((item) => {
+        if (item.id === id) {
+          return { ...item, width: newWidth, height: newHeight, x: targetX, y: targetY };
+        }
+        if (groupId && item.groupId === groupId) {
+          return {
+            ...item,
+            x: targetX + (item.x - activeItem.x) * scaleX,
+            y: targetY + (item.y - activeItem.y) * scaleY,
+            width: item.width * scaleX,
+            height: item.height * scaleY,
+          };
+        }
+        return item;
+      });
+
+      if (groupId) {
+        setTexts((textItems) =>
+          textItems.map((item) =>
+            item.groupId === groupId
+              ? {
+                  ...item,
+                  x: targetX + (item.x - activeItem.x) * scaleX,
+                  y: targetY + (item.y - activeItem.y) * scaleY,
+                  fontSize: Math.max(8, (item.fontSize || 18) * textScale),
+                }
+              : item,
+          ),
+        );
+      }
       try {
         if (onImagesChange) onImagesChange(next);
         if (onImagesChangeComplete) onImagesChangeComplete(next);
@@ -273,9 +390,37 @@ const DesignArea = forwardRef(({ coords, onTextsChange, onImagesChange, onSelect
 
   const updateImageRotation = (id, newRotation) => {
     setImages((items) => {
+      const activeItem = items.find((item) => item.id === id);
+      const groupId = activeItem?.groupId;
+      const rotationDelta = newRotation - (activeItem?.rotation || 0);
       const next = items.map((item) =>
-        item.id === id ? { ...item, rotation: newRotation } : item
+        item.id === id
+          ? { ...item, rotation: newRotation }
+          : groupId && item.groupId === groupId
+            ? { ...item, rotation: (item.rotation || 0) + rotationDelta }
+            : item
       );
+      return next;
+    });
+  };
+
+  const applyImageCrop = ({ id, src, x, y, width: croppedWidth, height: croppedHeight }) => {
+    setImages((items) => {
+      const activeItem = items.find((item) => item.id === id);
+      if (!activeItem) return items;
+      const patternGroupId = activeItem.patternId ? activeItem.groupId : null;
+      const next = items.map((item) => {
+        if (item.id === id) {
+          return { ...item, src, x, y, width: croppedWidth, height: croppedHeight };
+        }
+        // Pattern tiles remain one layer, so their source changes together.
+        if (patternGroupId && item.groupId === patternGroupId) {
+          return { ...item, src };
+        }
+        return item;
+      });
+      if (onImagesChange) onImagesChange(next);
+      if (onImagesChangeComplete) onImagesChangeComplete(next);
       return next;
     });
   };
@@ -441,6 +586,231 @@ const DesignArea = forwardRef(({ coords, onTextsChange, onImagesChange, onSelect
     sortElementsByZIndex();
   };
 
+  const groupLayers = (layerIds) => {
+    if (!Array.isArray(layerIds) || layerIds.length < 2) return;
+
+    const textIds = new Set(
+      layerIds
+        .filter((layerId) => layerId.startsWith("text-"))
+        .map((layerId) => layerId.slice(5)),
+    );
+    const imageIds = new Set(
+      layerIds
+        .filter((layerId) => layerId.startsWith("image-"))
+        .map((layerId) => layerId.slice(6)),
+    );
+    const groupId = `group-${Date.now()}`;
+
+    setTexts((items) => {
+      const next = items.map((item) =>
+        textIds.has(item.id) ? { ...item, groupId } : item,
+      );
+      if (onTextsChange) onTextsChange(next);
+      if (onTextsChangeComplete) onTextsChangeComplete(next);
+      return next;
+    });
+    setImages((items) => {
+      const next = items.map((item) =>
+        imageIds.has(item.id) ? { ...item, groupId } : item,
+      );
+      if (onImagesChange) onImagesChange(next);
+      if (onImagesChangeComplete) onImagesChangeComplete(next);
+      return next;
+    });
+  };
+
+  const ungroupLayers = (layerIds) => {
+    if (!Array.isArray(layerIds) || layerIds.length === 0) return;
+    const selectedIds = new Set(layerIds);
+    const groupIds = new Set();
+    texts.forEach((item) => {
+      if (selectedIds.has(`text-${item.id}`) && item.groupId) groupIds.add(item.groupId);
+    });
+    images.forEach((item) => {
+      if (selectedIds.has(`image-${item.id}`) && item.groupId) groupIds.add(item.groupId);
+    });
+    if (groupIds.size === 0) return;
+
+    setTexts((items) => {
+      const next = items.map((item) =>
+        groupIds.has(item.groupId) ? { ...item, groupId: null } : item,
+      );
+      if (onTextsChange) onTextsChange(next);
+      if (onTextsChangeComplete) onTextsChangeComplete(next);
+      return next;
+    });
+    setImages((items) => {
+      const next = items.map((item) =>
+        groupIds.has(item.groupId) ? { ...item, groupId: null } : item,
+      );
+      if (onImagesChange) onImagesChange(next);
+      if (onImagesChangeComplete) onImagesChangeComplete(next);
+      return next;
+    });
+  };
+
+  const alignSelected = ({ type, id, position }) => {
+    const padding = 6;
+    const positionInLayout = (itemWidth, itemHeight) => ({
+      x: {
+        left: layoutArea.x + padding,
+        center: layoutArea.x + (layoutArea.width - itemWidth) / 2,
+        right: layoutArea.x + layoutArea.width - itemWidth - padding,
+      }[position],
+      y: {
+        top: layoutArea.y + padding,
+        middle: layoutArea.y + (layoutArea.height - itemHeight) / 2,
+        bottom: layoutArea.y + layoutArea.height - itemHeight - padding,
+      }[position],
+    });
+
+    if (type === "image") {
+      setImages((items) => {
+        const next = items.map((item) => {
+          if (item.id !== id) return item;
+          const nextPosition = positionInLayout(item.width || 0, item.height || 0);
+          return {
+            ...item,
+            x: nextPosition.x ?? item.x,
+            y: nextPosition.y ?? item.y,
+          };
+        });
+        if (onImagesChange) onImagesChange(next);
+        if (onImagesChangeComplete) onImagesChangeComplete(next);
+        return next;
+      });
+      return;
+    }
+
+    if (type === "text") {
+      setTexts((items) => {
+        const next = items.map((item) => {
+          if (item.id !== id) return item;
+          const fontSize = item.fontSize || 18;
+          const lines = (item.text || "").split("\n");
+          const longestLine = lines.reduce(
+            (longest, line) => Math.max(longest, line.length),
+            1,
+          );
+          const textWidth = Math.min(
+            layoutArea.width - padding * 2,
+            Math.max(fontSize, longestLine * fontSize * 0.6),
+          );
+          const textHeight = Math.min(
+            layoutArea.height - padding * 2,
+            Math.max(fontSize, lines.length * fontSize * 1.2),
+          );
+          const nextPosition = positionInLayout(textWidth, textHeight);
+
+          // TextItem stores x/y at the centre of the text bounds.
+          return {
+            ...item,
+            x: nextPosition.x === undefined ? item.x : nextPosition.x + textWidth / 2,
+            y: nextPosition.y === undefined ? item.y : nextPosition.y + textHeight / 2,
+          };
+        });
+        if (onTextsChange) onTextsChange(next);
+        if (onTextsChangeComplete) onTextsChangeComplete(next);
+        return next;
+      });
+    }
+  };
+
+  const createPattern = ({ type, id }) => {
+    const padding = 8;
+    const gap = 8;
+    const availableWidth = Math.max(1, layoutArea.width - padding * 2);
+    const availableHeight = Math.max(1, layoutArea.height - padding * 2);
+    const timestamp = Date.now();
+    // A pattern is represented by several rendered tiles, but they share one
+    // identifier so the editor can treat them as one design object.
+    const patternId = `pattern-${timestamp}`;
+    const grid = (tileWidth, tileHeight) => {
+      const columns = Math.min(6, Math.max(1, Math.floor((availableWidth + gap) / (tileWidth + gap))));
+      const rows = Math.min(6, Math.max(1, Math.floor((availableHeight + gap) / (tileHeight + gap))));
+      return {
+        columns,
+        rows,
+        stepX: columns === 1 ? 0 : (availableWidth - tileWidth) / (columns - 1),
+        stepY: rows === 1 ? 0 : (availableHeight - tileHeight) / (rows - 1),
+      };
+    };
+
+    if (type === "image") {
+      setImages((items) => {
+        const source = items.find((item) => item.id === id);
+        if (!source) return items;
+        const scale = Math.min(
+          1,
+          (availableWidth / 3) / Math.max(1, source.width),
+          (availableHeight / 3) / Math.max(1, source.height),
+        );
+        const tileWidth = Math.max(18, source.width * scale);
+        const tileHeight = Math.max(18, source.height * scale);
+        const { columns, rows, stepX, stepY } = grid(tileWidth, tileHeight);
+        const patternedItems = [];
+
+        for (let row = 0; row < rows; row += 1) {
+          for (let column = 0; column < columns; column += 1) {
+            const isSource = row === 0 && column === 0;
+            patternedItems.push({
+              ...source,
+              id: isSource ? source.id : `${source.id}-pattern-${timestamp}-${row}-${column}`,
+              groupId: patternId,
+              patternId,
+              isPatternPrimary: isSource,
+              x: layoutArea.x + padding + column * stepX,
+              y: layoutArea.y + padding + row * stepY,
+              width: tileWidth,
+              height: tileHeight,
+            });
+          }
+        }
+
+        const next = [...items.filter((item) => item.id !== source.id), ...patternedItems];
+        if (onImagesChange) onImagesChange(next);
+        if (onImagesChangeComplete) onImagesChangeComplete(next);
+        return next;
+      });
+      return;
+    }
+
+    if (type === "text") {
+      setTexts((items) => {
+        const source = items.find((item) => item.id === id);
+        if (!source) return items;
+        const fontSize = source.fontSize || 18;
+        const lines = (source.text || "").split("\n");
+        const longestLine = lines.reduce((longest, line) => Math.max(longest, line.length), 1);
+        const tileWidth = Math.max(18, Math.min(availableWidth / 3, longestLine * fontSize * 0.6));
+        const tileHeight = Math.max(fontSize, Math.min(availableHeight / 3, lines.length * fontSize * 1.2));
+        const { columns, rows, stepX, stepY } = grid(tileWidth, tileHeight);
+        const patternedItems = [];
+
+        for (let row = 0; row < rows; row += 1) {
+          for (let column = 0; column < columns; column += 1) {
+            const isSource = row === 0 && column === 0;
+            patternedItems.push({
+              ...source,
+              id: isSource ? source.id : `${source.id}-pattern-${timestamp}-${row}-${column}`,
+              groupId: patternId,
+              patternId,
+              isPatternPrimary: isSource,
+              isEditing: false,
+              x: layoutArea.x + padding + tileWidth / 2 + column * stepX,
+              y: layoutArea.y + padding + tileHeight / 2 + row * stepY,
+            });
+          }
+        }
+
+        const next = [...items.filter((item) => item.id !== source.id), ...patternedItems];
+        if (onTextsChange) onTextsChange(next);
+        if (onTextsChangeComplete) onTextsChangeComplete(next);
+        return next;
+      });
+    }
+  };
+
   // Allow parent (Canvas) to call addText or getSVG
   useImperativeHandle(ref, () => ({
     addText,
@@ -458,6 +828,11 @@ const DesignArea = forwardRef(({ coords, onTextsChange, onImagesChange, onSelect
     images,
     updateImageSize,
     updateImageRotation,
+    applyImageCrop,
+    alignSelected,
+    createPattern,
+    groupLayers,
+    ungroupLayers,
     setSelectedImageId,
     setSelectedTextId,
     selectTextFromLayer: (textId) => {
@@ -517,6 +892,37 @@ const DesignArea = forwardRef(({ coords, onTextsChange, onImagesChange, onSelect
     ...images.map((image) => ({ ...image, type: "image", flipX: image.flipX || false, flipY: image.flipY || false })),
   ].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
 
+  // The existing grey design layout is positioned on the T-shirt's chest.
+  // Its contents stay within this visible print-layout square.
+  const isSideView = productView === "Right" || productView === "Left";
+  const isLeftView = productView === "Left";
+  const shirtFrame = isSideView
+    ? {
+        x: width * 0.1,
+        y: height * 0.1,
+        width: width * 0.9,
+        height: height * 0.8,
+      }
+    : {
+        x: -width * 0.075,
+        y: 0,
+        width: width * 1.15,
+        height,
+      };
+  const layoutArea = isSideView
+    ? {
+        x: width * (isLeftView ? 0.385 : 0.455),
+        y: height * 0.44,
+        width: width * 0.16,
+        height: height * 0.34,
+      }
+    : {
+        x: width * 0.292,
+        y: height * 0.3,
+        width: width * 0.416,
+        height: height * 0.416,
+      };
+
   // Rendering sortedElements (debug logging removed)
 
   return (
@@ -529,11 +935,47 @@ const DesignArea = forwardRef(({ coords, onTextsChange, onImagesChange, onSelect
         top: y,
         width: width,
         height: height,
-        backgroundColor: "white",
+        backgroundColor: "transparent",
       }}
       onClick={handleCanvasClick}
     >
-      {sortedElements.map((element) => {
+      <defs>
+        <clipPath id="tshirt-design-layout">
+          <rect
+            x={layoutArea.x}
+            y={layoutArea.y}
+            width={layoutArea.width}
+            height={layoutArea.height}
+            rx="3"
+          />
+        </clipPath>
+      </defs>
+      {/* Product mockup stays behind user-added design elements. */}
+      <g
+        key={productView}
+        transform={isLeftView ? `translate(${width} 0) scale(-1 1)` : undefined}
+      >
+        <image
+          href={productImageSrc}
+          x={shirtFrame.x}
+          y={shirtFrame.y}
+          width={shirtFrame.width}
+          height={shirtFrame.height}
+          preserveAspectRatio="xMidYMid meet"
+          pointerEvents="none"
+        />
+      </g>
+      <rect
+        x={layoutArea.x}
+        y={layoutArea.y}
+        width={layoutArea.width}
+        height={layoutArea.height}
+        rx="3"
+        fill="#e5e7eb"
+        pointerEvents="none"
+      />
+      <g clipPath="url(#tshirt-design-layout)">
+        {sortedElements.map((element) => {
         if (element.type === "text") {
           const { id, x, y, text, isEditing, visible, fontSize = 18, font = "Comic Neue", isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false, rotation = 0, textAlign = 'left', color = '#000000', isCurved = false, curveType = 'Arch Up', curveIntensity = 0 } = element;
           return (
@@ -616,7 +1058,8 @@ const DesignArea = forwardRef(({ coords, onTextsChange, onImagesChange, onSelect
           );
         }
         return null;
-      })}
+        })}
+      </g>
     </svg>
   );
 });

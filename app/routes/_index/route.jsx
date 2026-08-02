@@ -1,52 +1,31 @@
-import { redirect } from "@remix-run/node";
-import { Form, useLoaderData } from "@remix-run/react";
-import { login } from "../../shopify.server";
+import { Link } from "@remix-run/react";
 import styles from "./styles.module.css";
 
-export const loader = async ({ request }) => {
-  const url = new URL(request.url);
-
-  if (url.searchParams.get("shop")) {
-    throw redirect(`/app?${url.searchParams.toString()}`);
-  }
-
-  return { showForm: Boolean(login) };
-};
-
-export default function App() {
-  const { showForm } = useLoaderData();
-
+export default function Home() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>A short heading about [your app]</h1>
+        <div className={styles.badge}>PORTFOLIO PROJECT</div>
+        <h1 className={styles.heading}>Flair Product Customiser</h1>
         <p className={styles.text}>
-          A tagline about [your app] that describes your value proposition.
+          Design a made-to-order product directly in your browser. Add text and
+          images, adjust layers, and preview your custom design.
         </p>
-        {showForm && (
-          <Form className={styles.form} method="post" action="/auth/login">
-            <label className={styles.label}>
-              <span>Shop domain</span>
-              <input className={styles.input} type="text" name="shop" />
-              <span>e.g: my-shop-domain.myshopify.com</span>
-            </label>
-            <button className={styles.button} type="submit">
-              Log in
-            </button>
-          </Form>
-        )}
+        <Link className={styles.button} to="/customiser">
+          Open the live demo
+        </Link>
         <ul className={styles.list}>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Canvas editing</strong>. Add, move, resize and style text
+            and image elements.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Layer controls</strong>. Reorder, toggle and manage each
+            part of the design.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Browser demo</strong>. Uses local sample data and does not
+            require a Shopify login.
           </li>
         </ul>
       </div>

@@ -1,11 +1,13 @@
 .index {
+  background: linear-gradient(135deg, #f5ebff 0%, #fff 55%, #fce7f3 100%);
   align-items: center;
   display: flex;
   justify-content: center;
   height: 100%;
   width: 100%;
   text-align: center;
-  padding: 1rem;
+  min-height: 100vh;
+  padding: 2rem;
 }
 
 .heading,
@@ -15,37 +17,46 @@
 }
 
 .text {
+  color: #4b5563;
   font-size: 1.2rem;
+  line-height: 1.6;
+  max-width: 43rem;
   padding-bottom: 2rem;
 }
 
 .content {
   display: grid;
   gap: 2rem;
+  max-width: 56rem;
 }
 
-.form {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  margin: 0 auto;
-  gap: 1rem;
+.badge {
+  color: #7e22ce;
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .12em;
 }
 
-.label {
-  display: grid;
-  gap: 0.2rem;
-  max-width: 20rem;
-  text-align: left;
-  font-size: 1rem;
-}
-
-.input {
-  padding: 0.4rem;
+.heading {
+  color: #1f2937;
+  font-size: clamp(2.5rem, 7vw, 5rem);
+  line-height: 1;
 }
 
 .button {
-  padding: 0.4rem;
+  background: #7e22ce;
+  border-radius: 999px;
+  color: white;
+  font-weight: 700;
+  justify-self: center;
+  padding: .85rem 1.5rem;
+  text-decoration: none;
+  transition: background .2s, transform .2s;
+}
+
+.button:hover {
+  background: #6b21a8;
+  transform: translateY(-2px);
 }
 
 .list {
@@ -55,10 +66,16 @@
   margin: 0;
   display: flex;
   gap: 2rem;
+  justify-content: center;
 }
 
 .list > li {
+  background: rgba(255, 255, 255, .78);
+  border: 1px solid #e9d5ff;
+  border-radius: 1rem;
+  line-height: 1.5;
   max-width: 20rem;
+  padding: 1rem;
   text-align: left;
 }
 
