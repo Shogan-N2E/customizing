@@ -33,6 +33,7 @@ import {
   AlignStartHorizontal, 
   AlignCenterHorizontal, 
   AlignEndHorizontal, 
+  ChevronDown,
   Layers, 
   Check,
   ShoppingCart,
@@ -738,12 +739,12 @@ const redoLayer = (layerId) => {
         </header>
 
         {/* Main Layout */}
-        <div className="w-full flex gap-0 overflow-hidden flex-1 h-0">
+        <div className="w-full flex min-h-0 flex-1 gap-0 overflow-hidden">
           <div className="flex w-full h-full min-h-0 justify-between">
             {/* Toolbar + Left + Center + View Controls */}
             <div className="flex flex-col flex-1 min-w-0">
               {/* Toolbar */}
-              <div className="z-10 bg-white border-b border-gray-200 px-4 py-0.5 flex items-center min-h-0 w-full" style={{height: 40}}>
+              <div className="z-10 shrink-0 bg-white border-b border-gray-200 px-4 py-0.5 flex items-center w-full" style={{height: 40}}>
                 <div className="flex w-full items-center justify-between gap-4">
                   <div className="w-3 flex-shrink-0" />
                   
@@ -1091,7 +1092,7 @@ const redoLayer = (layerId) => {
               </div>
               
               {/* Left+Center+View Controls Row */}
-              <div className="flex flex-1 min-h-0 h-0">
+              <div className="flex flex-1 min-h-0">
                 {/* Left Side Panel */}
                 <div className="w-48 bg-[#ECDBEF] flex flex-col items-center justify-start relative h-full min-h-0">
                   <div className="flex flex-col space-y-3 mt-8 w-full items-center">
@@ -1107,14 +1108,17 @@ const redoLayer = (layerId) => {
                       className={`w-36 h-12 bg-white border-2 ${showLayerPanel ? 'border-purple-600' : 'border-black'} hover:border-purple-600 flex flex-row items-center justify-start rounded-full shadow-none px-4 text-lg font-extrabold gap-2`}
                       onClick={() => setShowLayerPanel((prev) => !prev)}
                     >
-                      <Layers className={`w-7 h-7 mr-2 ${showLayerPanel ? 'text-purple-600' : 'text-black'}`} />
+                      <Layers className={`h-4 w-4 mr-1 shrink-0 ${showLayerPanel ? 'text-purple-600' : 'text-black'}`} />
                       <span className={`font-extrabold text-lg ${showLayerPanel ? 'text-purple-600' : 'text-black'}`}>Layer</span>
-                      <span className={`text-base ml-2 ${showLayerPanel ? 'text-purple-600' : 'text-black'}`}>{showLayerPanel ? '▲' : '▼'}</span>
+                      <ChevronDown
+                        aria-hidden="true"
+                        className={`ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-150 ${showLayerPanel ? 'rotate-180 text-purple-600' : 'text-black'}`}
+                      />
                     </button>
                     
                     {/* Layer Panel */}
                     {showLayerPanel && displayLayers.length > 0 && (
-                      <div className="w-44 bg-transparent rounded-2xl mt-3 flex flex-col gap-2 p-2 border-2 border-purple-600 shadow-lg">
+                      <div className="mt-3 flex max-h-[calc(100vh-220px)] w-44 flex-col gap-2 overflow-y-auto rounded-2xl border-2 border-purple-600 bg-[#ECDBEF] p-2 shadow-lg">
                         {displayLayers.map((layer) => {
                           const isSelected = selectedLayerIds.includes(layer.id);
                           return (
@@ -1187,11 +1191,18 @@ const redoLayer = (layerId) => {
                 </div>
                 
                 {/* Center Canvas */}
-                <div className="flex-1 flex items-center justify-center relative h-full min-h-0 bg-white">
+                <div className="flex-1 flex items-center justify-center relative h-full min-h-0 min-w-0 bg-white">
                   <div
-                    className="relative w-full max-w-[600px] aspect-square flex items-center justify-center overflow-hidden"
+                    className="relative w-full max-w-[600px] aspect-square overflow-hidden"
+                  >
+                    <div
+                      className="absolute inset-0"
                     style={{
-                      transform: `scale(${zoom})`,
+                      // Safari can drop the contents of an SVG when the same
+                      // element is both clipped and transformed. Keep clipping
+                      // on this outer frame and only create a transform layer
+                      // when the user actually changes the zoom level.
+                      transform: zoom === 1 ? undefined : `scale(${zoom})`,
                       transformOrigin: 'center center',
                       transition: 'transform 0.2s',
                     }}
@@ -1207,6 +1218,7 @@ const redoLayer = (layerId) => {
                       onImagesChangeComplete={handleImagesChangeComplete}
                       onSelectionChange={handleSelectionChange}
                     />
+                    </div>
                   </div>
                 </div>
                 

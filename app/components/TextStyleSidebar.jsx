@@ -8,6 +8,7 @@ import {
   AlignLeft,
   AlignCenter, 
   AlignRight,
+  ChevronUp,
   ChevronDown,
   Plus,
   Minus
@@ -243,12 +244,10 @@ export default function TextStyleSidebar({ selectedText, onChangeTextStyle, onGo
                     className="w-full px-4 py-2.5 border-2 border-black rounded-full focus:outline-none focus:border-gray-500 bg-white text-lg font-medium transition-all duration-200 hover:shadow-md text-left flex items-center justify-between"
                   >
                     <span style={{ fontFamily: selectedFont }}>{selectedFont}</span>
-                    <span 
-                      className="text-sm transition-transform duration-200"
-                      style={{ color: '#f87171' }}
-                    >
-                      {isDropdownOpen ? '▲' : '▼'}
-                    </span>
+                    <ChevronDown
+                      aria-hidden="true"
+                      className={`h-4 w-4 shrink-0 text-[#f87171] transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
+                    />
                   </button>
                   
                   {isDropdownOpen && (
@@ -321,7 +320,7 @@ export default function TextStyleSidebar({ selectedText, onChangeTextStyle, onGo
                     className="w-4 h-3 flex items-center justify-center hover:bg-gray-100 rounded-full text-xs font-bold"
                     style={{ color: '#f87171' }}
                   >
-                    ▲
+                    <ChevronUp aria-hidden="true" className="h-3 w-3" strokeWidth={3} />
                   </button>
                   <button 
                     onClick={() => {
@@ -335,7 +334,7 @@ export default function TextStyleSidebar({ selectedText, onChangeTextStyle, onGo
                     className="w-4 h-3 flex items-center justify-center hover:bg-gray-100 rounded-full text-xs font-bold"
                     style={{ color: '#f87171' }}
                   >
-                    ▼
+                    <ChevronDown aria-hidden="true" className="h-3 w-3" strokeWidth={3} />
                   </button>
                 </div>
               </div>
@@ -768,7 +767,7 @@ export default function TextStyleSidebar({ selectedText, onChangeTextStyle, onGo
                     className="w-4 h-3 flex items-center justify-center hover:bg-gray-100 rounded-full text-xs font-bold"
                     style={{ color: '#f87171' }}
                   >
-                    ▲
+                    <ChevronUp aria-hidden="true" className="h-3 w-3" strokeWidth={3} />
                   </button>
                   <button 
                     onClick={() => {
@@ -782,7 +781,7 @@ export default function TextStyleSidebar({ selectedText, onChangeTextStyle, onGo
                     className="w-4 h-3 flex items-center justify-center hover:bg-gray-100 rounded-full text-xs font-bold"
                     style={{ color: '#f87171' }}
                   >
-                    ▼
+                    <ChevronDown aria-hidden="true" className="h-3 w-3" strokeWidth={3} />
                   </button>
                 </div>
               </div>

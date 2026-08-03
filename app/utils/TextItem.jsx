@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 export default function TextItem({
   svgRef,
+  editorOverlay,
   id,
   x: initialX,
   y: initialY,
@@ -712,12 +714,7 @@ export default function TextItem({
             }) || <tspan> </tspan>}
           </text>
 
-          <foreignObject
-            x={getEditBoxX(textAlign)}
-            y={position.y - bbox.height / 2 - 4}
-            width={bbox.width + 8}
-            height={bbox.height + 8}
-          >
+          {editorOverlay && createPortal(
             <textarea
               ref={inputRef}
               value={text}
@@ -725,8 +722,11 @@ export default function TextItem({
               onBlur={handleBlur}
               onKeyDown={handleKeyDown}
               style={{
-                width: "100%",
-                height: "100%",
+                position: "absolute",
+                left: getEditBoxX(textAlign),
+                top: position.y - bbox.height / 2 - 4,
+                width: bbox.width + 8,
+                height: bbox.height + 8,
                 boxSizing: "border-box",
                 fontFamily: `"${font}", sans-serif`,
                 fontSize: `${currentFontSize}px`,
@@ -739,14 +739,16 @@ export default function TextItem({
                 outline: "none",
                 resize: "none",
                 overflow: "hidden",
-                textAlign: textAlign,
+                textAlign,
                 lineHeight: "1.2",
                 background: "white",
-                color: color,
-                verticalAlign: "top"
+                color,
+                verticalAlign: "top",
+                pointerEvents: "auto",
               }}
-            />
-          </foreignObject>
+            />,
+            editorOverlay,
+          )}
         </>
       )}
       

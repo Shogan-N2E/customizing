@@ -34,6 +34,9 @@ const DesignArea = forwardRef(({ coords, productView = "Front", productImageSrc 
   const [images, setImages] = useState([]);
   const [selectedImageId, setSelectedImageId] = useState(null);
   const [selectedTextId, setSelectedTextId] = useState(null);
+  // Safari can expand an SVG foreignObject during a pointer repaint. The
+  // editable control is rendered in this normal HTML overlay instead.
+  const [editorOverlay, setEditorOverlay] = useState(null);
 
   // Notify parent when texts change
   useEffect(() => {
@@ -926,15 +929,21 @@ const DesignArea = forwardRef(({ coords, productView = "Front", productImageSrc 
   // Rendering sortedElements (debug logging removed)
 
   return (
+    <>
     <svg
       ref={svgRef}
       id="design-svg"
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="xMidYMid meet"
       style={{
         position: "absolute",
         left: x,
         top: y,
         width: width,
         height: height,
+        display: "block",
         backgroundColor: "transparent",
       }}
       onClick={handleCanvasClick}
@@ -989,6 +998,7 @@ const DesignArea = forwardRef(({ coords, productView = "Front", productImageSrc 
               >
                 <TextItem
                   svgRef={svgRef}
+                  editorOverlay={editorOverlay}
                   id={id}
                   x={x}
                   y={y}
@@ -1061,6 +1071,16 @@ const DesignArea = forwardRef(({ coords, productView = "Front", productImageSrc 
         })}
       </g>
     </svg>
+    <div
+      ref={setEditorOverlay}
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 10,
+        pointerEvents: "none",
+      }}
+    />
+    </>
   );
 });
 
